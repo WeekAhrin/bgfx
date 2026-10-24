@@ -358,9 +358,11 @@ WL_EGL_IMPORT
 
 #	if BX_PLATFORM_ANDROID
 
+#	ifndef BGFX_CONFIG_ANDROID_HEADLESS
 			EGLint format;
 			eglGetConfigAttrib(m_display, m_config, EGL_NATIVE_VISUAL_ID, &format);
 			ANativeWindow_setBuffersGeometry( (ANativeWindow*)g_platformData.nwh, _width, _height, format);
+#	endif
 
 #	elif BX_PLATFORM_RPI
 			DISPMANX_DISPLAY_HANDLE_T dispmanDisplay = vc_dispmanx_display_open(0);
@@ -535,17 +537,31 @@ WL_EGL_IMPORT
 #	if BX_PLATFORM_ANDROID
 		if (NULL != m_display)
 		{
-			EGLNativeWindowType nwh = (EGLNativeWindowType )g_platformData.nwh;
 			eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 			eglDestroySurface(m_display, m_surface);
+
+#	ifdef BGFX_CONFIG_ANDROID_HEADLESS
+			EGLint pbAttribs[] =
+			{
+				EGL_WIDTH,  EGLint(1),
+				EGL_HEIGHT, EGLint(1),
+
+				EGL_NONE
+			};
+			m_surface = eglCreatePbufferSurface(m_display, m_config, pbAttribs);
+#	else
+			EGLNativeWindowType nwh = (EGLNativeWindowType )g_platformData.nwh;
 			m_surface = eglCreateWindowSurface(m_display, m_config, nwh, NULL);
+#	endif
 			BGFX_FATAL(m_surface != EGL_NO_SURFACE, Fatal::UnableToInitialize, "Failed to create surface.");
 			EGLBoolean success = eglMakeCurrent(m_display, m_surface, m_surface, m_context);
 			BGFX_FATAL(success, Fatal::UnableToInitialize, "Failed to set context.");
 
+#	ifndef BGFX_CONFIG_ANDROID_HEADLESS
 			EGLint format;
 			eglGetConfigAttrib(m_display, m_config, EGL_NATIVE_VISUAL_ID, &format);
 			ANativeWindow_setBuffersGeometry( (ANativeWindow*)g_platformData.nwh, _width, _height, format);
+#	endif
 		}
 #	elif BX_PLATFORM_EMSCRIPTEN
 		EMSCRIPTEN_CHECK(emscripten_set_canvas_element_size(HTML5_TARGET_CANVAS_SELECTOR, _width, _height) );
